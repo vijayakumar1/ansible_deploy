@@ -1,0 +1,41 @@
+---
+- hosts: ds_64
+  user: acsapp
+  tasks:
+  - name: check Java version
+    shell: java -version
+    register: java_version
+
+  - name: the java version
+    debug: var=java_version
+
+  - name: make directory structure
+    shell: cd /backup ; mkdir softwares ; cd /backup/softwares ; mkdir java
+
+  - name: get the file
+    copy: src="{{item}}" dest=/backup/softwares/java
+    with_fileglob:
+    - /backup/softwares/java/jdk1.8.0_161.tar
+    - /backup/softwares/java_path
+  - name: untar the file
+    shell: cd /backup/softwares/java && tar -xvf jdk1.8.0_161.tar
+
+  - name: create symlink
+    command: ln -s /backup/softwares/java/jdk1.8.0_161 /backup/softwares/java/current-java
+
+  - name: set java
+    command: sudo update-alternatives --install /usr/bin/java java /backup/softwares/java/current-java/bin/java 1
+
+  - name: edit the ~/.bashrc file
+    shell: cd /backup/softwares/java ; cat java_path >> ~/.bashrc
+
+  - name: export java
+    shell: export echo JAVA_HOME=/backup/softwares/java/current-java
+
+  - name: checking java version
+    shell: echo $JAVA_HOME
+    register: java.out
+
+  - name: show the output
+    debug: var=java.out
+~                           
