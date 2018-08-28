@@ -1,0 +1,19 @@
+---
+- hosts: ds_53
+  user: acsapp
+  vars:
+  - dir1: v1
+  - dir2: v2
+  tasks:
+  - name: create directory structure
+    shell: mkdir /appserver/{{v1}} && chmod 777 -R /appserver/ ; sleep 3
+
+  - name: setup the things for first time deploy
+    copy: src={{item}} dest=/appserver/{{v1}}
+    with_fileglob:
+      - /appserver/jenkins-workspace/deploy_tings/*
+      - /appserver/acsapp/ansi@scripts/jenkins_work_space/build/libs/*capsule.jar
+
+  - name: Createn the the backup directory
+    command: mkdir /appserver/{{v1}}/{{v2}}
+~                                          
