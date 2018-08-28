@@ -1,0 +1,33 @@
+---
+- hosts: ds_64
+  user: acsapp
+  vars:
+  - var1: pjt
+
+  tasks:
+  - name: create directory structure
+    shell: mkdir /appserver/{{pjt}} ; chmod 777 /appserver/{{pjt}} ; cd  /appserver/{{pjt}} ; mkdir /appserver/{{pjt}}/logs ; mkdir /appserver/{{pjt}}/bkp
+
+  - name: setup the things for first time deploy
+    copy:
+      src: "{{ item }}"
+      dest: /appserver/{{pjt}}
+      owner: acsapp
+      mode: 777
+    with_fileglob:
+    - /appserver/jenkins-workspace/deploy_tings/*.tar
+
+  - name: untar the files
+    shell: cd /appserver/{{pjt}} ; tar -xvf *.tar
+
+  - name: start new jar process in  the vertex
+    shell: cd /appserver/ ; sh acs2-ui.sh {{pjt}} ; sleep 2
+#    shell: cd /appserver/{{pjt}}/{{pjt}} ; sleep 2 ; sh run-java-app.sh *.jar start & ; sleep 8
+
+  - name : remove tar file
+    shell: cd /appserver/{{pjt}} ; rm -rf *.tar
+#  - name: Create the the backup directory
+#    shell: cd /appserver/{{pjt}} ; mkdir /appserver/{{pjt}}/{{bkp}}
+
+#  - name: take backup of existing jar file in vertx
+#    shell: cd /appserver/{{pjt}}/ ; mv /appserver/{{pjt}}/*capsule.jar /backup/{{pjt}}/{{bkp}}/
