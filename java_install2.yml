@@ -1,0 +1,26 @@
+---
+- hosts: ds_95
+  user: acsapp
+  tasks:
+  - name: Check if java is installed
+    command: java -version
+    register: java_result
+    ignore_errors: True
+
+  - name: mkdir
+    shell: cd /home/acsapp/ ;mkdir java ; chmod 777 java
+    when: java_result is failed
+
+  - name: get the file and Unarchive a file
+    unarchive:
+      src: /appserver/jenkins-workspace/java/jdk1.8.0_161.tar
+      dest: /home/acsapp/java/
+      remote_src: yes
+
+  - name: get the script file in to local
+    copy: src={{item}} dest=/home/acsapp/java/
+    with_fileglob:
+      - /backup/softwares/java/javahome
+
+  - name: export java
+    shell: cd /home/acsapp/java/ ; sh java.sh ; sleep 3
