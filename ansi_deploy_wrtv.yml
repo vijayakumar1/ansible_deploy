@@ -1,0 +1,28 @@
+---
+- hosts: ds_53
+  user: acsapp
+  vars:
+  - var1: pjt
+  tasks:
+  - name: stop the the exiting jar process
+    shell: cd /appserver/{{pjt}}/ ; sh run-java-app.sh *.jar stop ; sleep 3
+
+
+  - name: take backup of existing jar file in vertx
+    shell: cd /appserver/{{pjt}}/ ; mv /appserver/{{pjt}}/*capsule.jar /backup/{{pjt}}/bkp/
+
+  - name: deploy the new jar file into vertx
+    copy: src="{{item}}" dest=/appserver/{{pjt}}/
+    with_fileglob:
+      - /appserver/jenkins-workspace/{{pjt}}/{{pjt}}/build/libs/*capsule.jar
+
+  - name: start new jar process in  the vertex
+    shell: cd /appserver/{{pjt}}/ ; nohup sh run-java-app.sh *.jar start &
+
+  - name: checking if its successfully deployed in to  the vertex
+    shell: cd /appserver/{{pjt}}/ ; sh run-java-app.sh {{jar}} status
+    register: jar_status
+
+  - name: show the output
+    debug: var=java_status.out
+
