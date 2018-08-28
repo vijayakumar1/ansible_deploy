@@ -1,0 +1,21 @@
+---
+- hosts: ds_53
+  user: acsapp
+  tasks:
+  - name: stop the the exiting jar process
+    shell: cd /appserver/acs2-datastore-api/ ; nohup sh run-java-app.sh kafka-producer-consumer-1.0-SNAPSHOT-capsule.jar stop ; sleep 3
+
+
+  - name: take backup of existing jar file in vertx
+    shell: mv /appserver/acs2-datastore-api/kafka-producer-consumer-1.0-SNAPSHOT-capsule.jar "/backup/acs2-datastore-api"/kafka-producer-consumer-1.0-SNAPSHOT-capsule.jar_`date +%d-%m-%y`;
+
+  - name: deploy the new jar file into vertx
+    copy: src="{{item}}" dest=/appserver/acs2-datastore-api/
+    with_fileglob:
+      - /appserver/jenkins-workspace/acs2-datastore-api/acs2-datastore-api/build/libs/*capsule.jar
+
+  - name: start new jar process in  the vertex
+    shell: cd /appserver/acs2-datastore-api/ ; nohup sh run-java-app.sh kafka-producer-consumer-1.0-SNAPSHOT-capsule.jar start & ; sleep 3
+
+#  - name: checking if its successfully deployed in to  the vertex
+#    shell: cd /appserver/acs2-datastore-api/ ; sh run-java-app.sh kafka-producer-consumer-1.0-SNAPSHOT-capsule.jar status
