@@ -1,0 +1,14 @@
+---
+- hosts: ds_64
+  user: acsapp
+  tasks:
+#  - name: stop the the exiting jar process
+#    shell: cd /appserver/{{pjt}}/ ; sh run-java-app.sh *.jar stop ; sleep 3
+
+  - name : store jar into tbd
+    shell: cd /appserver/acs2-api/; ls *capsule.jar
+    register: capsule
+  - name: stop the the exiting jar process
+    shell: cd /appserver/acs2-api/ ; sh run-java-app.sh {{capsule.stdout}} stop ; sleep 3
+  - name: copy with time stamp
+    shell: mv /appserver/acs2-api/{{capsule.stdout}} "/backup/acs2-api/bkp"/{{capsule.stdout}}_`date +%d-%m-%y`
