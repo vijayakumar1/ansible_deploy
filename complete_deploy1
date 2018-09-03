@@ -1,0 +1,76 @@
+---
+- hosts: ds_64
+  user: acsapp
+  vars:
+  - var1: pjt
+  tasks:
+
+  - name : Check the appserver directory is available are not
+    shell: if [ -d /appserver/{{pjt}}/ ]; then echo "its ok" ; else mkdir /appserver/{{pjt}}/ ; fi
+    register: apt
+
+  - name: check the status
+    debug: var=apt.stdout
+
+  - name : Check the backup files directory is available are not
+    shell: if [ -d /backup/{{pjt}}/ ]; then echo "its ok" ; else mkdir /backup/{{pjt}}/ ; fi
+    register: bkp
+
+  - name: check the status
+    debug: var=bkp.stdout
+
+  - name : Check the appserver directory is available are not
+    shell: if [ -d /appserver/{{pjt}}/logs/ ]; then echo "its ok" ; else echo "not ok" ; fi
+    register: apt_result
+
+  - name: check the status
+    debug: var=apt.stdout
+
+  - name: setup the things for first time deploy
+    copy:
+      src: deploy.tar
+      dest: /appserver/{{pjt}}
+    when: apt_result.stdout== "not ok"
+
+  - name: untar the files
+    shell: cd /appserver/{{pjt}} ; tar -xvf *.tar ; sleep 5 ; rm -rf *.tar
+
+  - name : Check the appserver directory is available are not
+    shell: if [ -d /appserver/{{pjt}}/*.jar ]; then echo "its ok" ; else echo "not ok" ; fi
+    register: jar_result
+     - name: Stop the the exiting jar process
+    shell: cd /appserver/{{pjt}}/ ; sh run-java-app.sh *.jar stop ; sleep 3
+    register: process
+    when: jar_result.stdout== "its ok"
+
+  - name : Store jar into capsule file
+    shell: cd /appserver/{{pjt}}/; ls *capsule.jar
+    register: capsule
+    when: process is failed
+
+  - name: Stop the the exiting jar process
+    shell: cd /appserver/{{pjt}}/ ; sh run-java-app.sh {{capsule.stdout}} stop ; sleep 3
+    register: backup
+    when: capsule is failed
+
+  - name: Take backup with time stamp
+    shell: mv /appserver/{{pjt}}/{{capsule.stdout}} "/backup/{{pjt}}"/{{capsule.stdout}}_`date +%d-%m-%y`
+    when: backup is failed
+
+  - name: Deploy the new jar file into vertx
+    copy: src="{{item}}" dest=/appserver/{{pjt}}/
+    with_fileglob:
+      - /appserver/jenkins-workspace/{{pjt}}/{{pjt}}/build/libs/*capsule.jar
+#      - /home/acsapp/ansi@scripts/jenkins_work_space/{{pjt}}/build/libs/*capsule.jar
+
+  - name: Up the application with build
+    shell: cd /appserver/acs2-api/ ; nohup sh run-java-app.sh *.jar start &
+
+
+  - name: Checking if its successfully deployed in to  the vertex
+    shell: cd /appserver/acs2-api/ ; nohup sh run-java-app.sh *.jar status &
+    register: jar_status
+
+  - name: Show the output
+    debug: var=jar_status.stdout
+
