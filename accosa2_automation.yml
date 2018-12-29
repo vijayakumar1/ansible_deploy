@@ -1,0 +1,108 @@
+---
+ - hosts: "{{project}}" 
+   user: acsapp
+   vars:
+   - var1: baseDir
+   - var2: logBaseDir
+   - var3: clusterName
+   - var4: project
+   - var5: release
+   - var6: version
+   - var7: component
+   tasks:
+   - name : Creating artifactory directory
+     file:
+      path: "{{ item }}"
+      state: directory
+      owner: acsapp
+      group: acsapp
+      mode: 0775
+     with_items:
+     - /{{baseDir}}/{{component}}/{{component}}-cluster-{{clusterName}}/{{project}}/{{release}}/
+     - /{{logBaseDir}}/{{component}}/{{component}}-cluster-{{clusterName}}/{{project}}/{{release}}/
+     - /{{baseDir}}/{{component}}/{{component}}-cluster-{{clusterName}}/{{project}}/artifacts/
+     - /backup/{{component}}/{{component}}-cluster-{{clusterName}}/{{project}}/
+   - name: Storing app path
+     command: echo "/{{baseDir}}/{{component}}/{{component}}-cluster-{{clusterName}}/{{project}}/{{release}}/"
+     register: LIVE_PATH
+   
+   - name: Stoping previous vertex process
+     shell: cd "{{ LIVE_PATH.stdout }}"  ; for d in *.sh ; do ./$d stop ; sleep 2 ; done
+     register: stopjar
+
+   - name: Showing result
+     debug: var=stopjar.stdout
+
+   - name : Check project directory  is available are not
+     shell: if [ -d /{{baseDir}}/{{component}}/{{component}}-cluster-{{clusterName}}/{{project}}/artifacts/{{project}}-{{version}}/ ]; then echo "directory is available" ; else echo "directory is not available" ; fi
+     register: project_result
+
+   - name: Showing result
+     debug: var=project_result.stdout
+
+   - name : Delete old components symlinks 
+     shell: cd "{{ LIVE_PATH.stdout }}" ; find . -type l -exec unlink {} \;
+#     when: project_result.stdout== "directory is available"  
+
+   - name: Take backup with time stamp
+     shell: mv /{{baseDir}}/{{component}}/{{component}}-cluster-{{clusterName}}/{{project}}/artifacts/{{project}}-{{version}}/ "/backup/{{component}}/{{component}}-cluster-{{clusterName}}/{{project}}"/{{project}}-{{version}}_`date +%Y-%m-%d-%H-%M`
+     when: project_result.stdout== "directory is available"
+
+   - name : Get the new version to artifacts
+     unarchive: src="{{item}}" dest=/{{baseDir}}/{{component}}/{{component}}-cluster-{{clusterName}}/{{project}}/artifacts/
+     with_fileglob:
+      - /appserver/jenkins-workspace/zip_components/{{component}}_zip/final_versions/{{project}}-{{version}}.zip 
+
+   - name : Check in the app dir  is available are not
+     shell: if [ -d /{{baseDir}}/{{component}}/{{component}}-cluster-{{clusterName}}/{{project}}/artifacts/{{project}}-{{version}}/ ]; then echo "new version available" ; else echo "new version not available" ; fi
+     register: pjtdir_result
+
+   - name: Creating symlink for jar
+     shell: cd "{{ LIVE_PATH.stdout }}" ; nohup ln -vs ../artifacts/{{project}}-{{version}}/*.jar {{project}}.jar &
+     register: jarsymlinx
+     when: pjtdir_result.stdout== "new version available"    
+ 
+   - name: Checking out
+     debug: var=jarsymlinx.stdout_lines
+   
+
+   - name: Creating symlink for config
+     shell: cd "{{ LIVE_PATH.stdout }}" ; nohup ln -vs ../artifacts/{{project}}-{{version}}/config & 
+     register: configsymlink
+     when: pjtdir_result.stdout== "new version available"
+  
+   - name: Checking out
+     debug: var=configsymlink.stdout_lines
+
+   - name: Creating symlink for logs
+     shell: cd "{{ LIVE_PATH.stdout }}" ; nohup ln -vs /{{logBaseDir}}/{{component}}/{{component}}-cluster-{{clusterName}}/{{project}}/{{release}}/ logs &
+     register: logsymlinx
+     when: pjtdir_result.stdout== "new version available"
+  
+   - name: Checking out
+     debug: var=logsymlinx.stdout_lines
+  
+   - name: make the sh file executable
+     shell: cd "{{ LIVE_PATH.stdout }}" ; chmod 775 *.sh
+
+   - name: Checking the current status of application
+     shell: cd "{{ LIVE_PATH.stdout }}" ; for d in *.sh ; do ./$d status ; sleep 2 ; done
+     register: statusjar
+
+   - name: Checking the status
+     debug: var=statusjar.stdout
+
+   - name: Up the application with build
+     shell: cd "{{ LIVE_PATH.stdout }}" ; for d in *.sh ; do ./$d start ; sleep 2 ; done
+     register: startjar
+
+   - name: Checkin the result 
+     debug: var=startjar.stdout
+
+   - name: Up the application with build12
+     shell: cd "{{ LIVE_PATH.stdout }}" ; for d in *.sh ; do ./$d status ; sleep 2 ; done
+     register: final_status
+
+   - name: Checking the final Result
+     debug: var=final_status.stdout
+
