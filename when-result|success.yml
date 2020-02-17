@@ -1,0 +1,16 @@
+- hosts: node1
+  gather_facts: yes
+  tasks:
+   - name: Check File
+     shell: ls -ld /etc/postfix/post-install
+     register: result
+     ignore_errors: yes
+
+   - name: Define Variable
+     set_fact:
+         exists: "{{ result.stdout }}"
+     when: result|success
+
+   - name: Display Variable
+     debug: msg="{{ exists }}"
+     ignore_errors: yes
